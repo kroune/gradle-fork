@@ -17,6 +17,7 @@
 package org.gradle.api.internal.artifacts.transform;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.MapMaker;
 import org.gradle.api.artifacts.component.ComponentIdentifier;
 import org.gradle.api.attributes.AttributeContainer;
 import org.gradle.api.internal.artifacts.ivyservice.resolveengine.artifact.ResolvableArtifact;
@@ -29,7 +30,6 @@ import org.gradle.internal.operations.BuildOperationRunner;
 
 import javax.annotation.concurrent.ThreadSafe;
 import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 @ThreadSafe
@@ -37,7 +37,15 @@ public class DefaultTransformedVariantFactory implements TransformedVariantFacto
     private final BuildOperationRunner buildOperationRunner;
     private final CalculatedValueContainerFactory calculatedValueContainerFactory;
     private final TransformStepNodeFactory transformStepNodeFactory;
-    private final ConcurrentMap<VariantKey, ResolvedArtifactSet> variants = new ConcurrentHashMap<>();
+    // The values are weakly referenced: this map is a memoization cache for a single resolution
+    // (so that the same component variant is not transformed several times), not an owner of the
+    // transformation results. Once the consumers of a transformed artifact set are gone, the entry
+    // only serves as a lookup shortcut and must not extend the set's lifetime. This matters for
+    // builds with many scripts: each script handler owns such a cache, and the cached sets would
+    // otherwise be retained for the whole build even long after they stopped being used.
+    private final ConcurrentMap<VariantKey, ResolvedArtifactSet> variants = new MapMaker()
+        .weakValues()
+        .makeMap();
 
     public DefaultTransformedVariantFactory(
         BuildOperationRunner buildOperationRunner,
