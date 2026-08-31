@@ -19,6 +19,7 @@ import org.gradle.api.artifacts.Dependency;
 import org.gradle.api.artifacts.UnknownConfigurationException;
 import org.gradle.internal.service.scopes.Scope;
 import org.gradle.internal.service.scopes.ServiceScope;
+import org.jspecify.annotations.Nullable;
 
 @ServiceScope(Scope.Project.class)
 public interface ConfigurationContainerInternal extends RoleBasedConfigurationContainerInternal, ConfigurationsProvider {
@@ -26,4 +27,12 @@ public interface ConfigurationContainerInternal extends RoleBasedConfigurationCo
     ConfigurationInternal getByName(String name) throws UnknownConfigurationException;
     @Override
     ConfigurationInternal detachedConfiguration(Dependency... dependencies);
+
+    /**
+     * Returns the configuration with the given name if it has already been realized,
+     * or {@code null} if it is absent or only registered (pending). Unlike
+     * {@link #findByName(String)}, never triggers realization of a pending configuration.
+     */
+    @Nullable
+    ConfigurationInternal findByNameIfRealized(String name);
 }

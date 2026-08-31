@@ -25,6 +25,7 @@ dependencies {
     implementation(projects.declarativeDslCore)
     implementation(projects.declarativeDslEvaluator)
     implementation(projects.declarativeDslProvider)
+    implementation(projects.dependencyManagement)
     implementation(projects.fileCollections)
     implementation(projects.functional)
     implementation(projects.hashing)

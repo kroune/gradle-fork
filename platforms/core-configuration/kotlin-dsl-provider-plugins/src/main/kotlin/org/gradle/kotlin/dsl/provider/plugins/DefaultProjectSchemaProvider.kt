@@ -20,7 +20,6 @@ import org.gradle.api.NamedDomainObjectCollectionSchema
 import org.gradle.api.NamedDomainObjectCollectionSchema.NamedDomainObjectSchema
 import org.gradle.api.NamedDomainObjectContainer
 import org.gradle.api.Project
-import org.gradle.api.artifacts.Configuration
 import org.gradle.api.artifacts.dsl.DependencyHandler
 import org.gradle.api.artifacts.dsl.RepositoryHandler
 import org.gradle.api.initialization.Settings
@@ -31,7 +30,7 @@ import org.gradle.api.reflect.TypeOf
 import org.gradle.api.tasks.SourceSet
 import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.api.tasks.TaskContainer
-import org.gradle.internal.deprecation.DeprecatableConfiguration
+import org.gradle.api.internal.artifacts.configurations.ConfigurationContainerInternal
 import org.gradle.kotlin.dsl.accessors.ConfigurationEntry
 import org.gradle.kotlin.dsl.accessors.ContainerElementFactoryEntry
 import org.gradle.kotlin.dsl.accessors.NestedModelEntry
@@ -275,15 +274,16 @@ fun sourceSetsOf(project: Project) =
 
 
 private
-fun accessibleConfigurationsOf(project: Project) =
-    project.configurations
-        .filter { isPublic(it.name) }
-        .map(::toConfigurationEntry)
-
-
-private
-fun toConfigurationEntry(configuration: Configuration) = (configuration as DeprecatableConfiguration).run {
-    ConfigurationEntry(name, declarationAlternatives)
+fun accessibleConfigurationsOf(project: Project): List<ConfigurationEntry<String>> {
+    val configurations = project.configurations as ConfigurationContainerInternal
+    // Iterate configuration *names* only: iterating the container itself would
+    // realize configurations that were merely registered. Declaration
+    // alternatives are read back from configurations that are already realized.
+    return configurations.names
+        .filter { isPublic(it) }
+        .map { name ->
+            ConfigurationEntry(name, configurations.findByNameIfRealized(name)?.declarationAlternatives.orEmpty())
+        }
 }
 
 

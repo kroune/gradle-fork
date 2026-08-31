@@ -138,6 +138,12 @@ public class DefaultConfigurationContainer extends AbstractValidatingNamedDomain
     }
 
     @Override
+    @Nullable
+    public ConfigurationInternal findByNameIfRealized(String name) {
+        return (ConfigurationInternal) findByNameWithoutRules(name);
+    }
+
+    @Override
     public ConfigurationInternal getByName(String name) {
         return (ConfigurationInternal) super.getByName(name);
     }

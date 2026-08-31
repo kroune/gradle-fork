@@ -710,6 +710,65 @@ class ProjectSchemaAccessorsIntegrationTest : AbstractKotlinIntegrationTest() {
     }
 
     @Test
+    fun `jit accessor generation does not realize configurations that were only registered`() {
+
+        withDefaultSettingsIn("buildSrc")
+        withBuildScriptIn(
+            "buildSrc",
+            """
+            plugins {
+                `kotlin-dsl`
+            }
+
+            gradlePlugin {
+                plugins {
+                    register("my-plugin") {
+                        id = "my-plugin"
+                        implementationClass = "plugins.MyPlugin"
+                    }
+                }
+            }
+
+            $repositoriesBlock
+            """
+        )
+
+        withFile(
+            "buildSrc/src/main/kotlin/plugins/MyPlugin.kt",
+            """
+            package plugins
+
+            import org.gradle.api.*
+
+            class MyPlugin : Plugin<Project> {
+                override fun apply(project: Project): Unit = project.run {
+                    configurations.register("lazyConfiguration") {
+                        println("realized lazyConfiguration")
+                    }
+                }
+            }
+            """
+        )
+
+        withBuildScript(
+            """
+            plugins {
+                `java-library`
+                id("my-plugin")
+            }
+
+            dependencies {
+                implementation("org.apache.commons:commons-io:1.3.2")
+            }
+            """
+        )
+
+        val result = build("help", "-q")
+
+        assertThat(result.output, not(containsString("realized lazyConfiguration")))
+    }
+
+    @Test
     fun `can add artifacts using generated accessors for configurations`() {
 
         withDefaultSettingsIn("buildSrc")

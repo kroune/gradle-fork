@@ -345,6 +345,32 @@ class DefaultConfigurationContainerTest extends Specification {
         "resolvableDependencyScopeLocked(String, Action)" | { resolvableDependencyScopeLocked("foo", it) }
     }
 
+    def "findByNameIfRealized does not realize a registered configuration"() {
+        given:
+        def configureAction = Mock(Action)
+        configurationContainer.register("lazyConf", configureAction)
+        def eagerConf = configurationContainer.create("eagerConf")
+
+        when:
+        def pending = configurationContainer.findByNameIfRealized("lazyConf")
+
+        then: "a registered (pending) configuration is invisible and not realized"
+        pending == null
+        0 * configureAction.execute(_)
+
+        and: "a realized configuration is found"
+        configurationContainer.findByNameIfRealized("eagerConf").is(eagerConf)
+
+        and: "an unknown name returns null"
+        configurationContainer.findByNameIfRealized("unknown") == null
+
+        when: "the pending configuration is realized"
+        def realized = configurationContainer.getByName("lazyConf")
+
+        then:
+        configurationContainer.findByNameIfRealized("lazyConf").is(realized)
+    }
+
     // withType when used with a class that is not a super-class of the container does not work with registered elements
     @ToBeImplemented
     def "can find all configurations even when they're registered"() {
