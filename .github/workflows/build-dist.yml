@@ -17,7 +17,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ref: [master, shared-default-cache-policy]
+        ref: [kotlin-dsl/lazy-configuration-accessors]
     steps:
       - uses: actions/checkout@v4
         with:
