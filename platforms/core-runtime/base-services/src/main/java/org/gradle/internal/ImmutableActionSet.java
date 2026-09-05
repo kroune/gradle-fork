@@ -31,7 +31,11 @@ import org.gradle.api.Action;
  * @param <T> the type of the subject of the action
  */
 public abstract class ImmutableActionSet<T> implements Action<T>, InternalListener {
-    private static final int FEW_VALUES = 5;
+    // Most sets observed in practice stay well below this size (e.g. per-task
+    // configuration action chains); a plain array with a linear contains check is
+    // both faster and much smaller than a hash table at these sizes. See
+    // https://github.com/kroune/immutable-action-set-bench for the JMH comparison.
+    private static final int FEW_VALUES = 128;
     private static final ImmutableActionSet<Object> EMPTY = new EmptySet<Object>();
 
     /**
