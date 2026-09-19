@@ -21,6 +21,11 @@ import org.gradle.internal.buildoption.InternalOptions
 import org.gradle.internal.execution.caching.CachingDisabledReason
 import org.gradle.internal.execution.caching.CachingDisabledReasonCategory
 
+
+internal
+enum class ScriptClasspathFingerprintingMode { LEGACY, CONTENT, CHUNKED }
+
+
 internal object KotlinDslInternalOptions {
     // Disables build caching for both Kotlin script compilation AND accessor generation
     private val CACHING_DISABLED_PROPERTY: InternalOption<Boolean> =
@@ -48,4 +53,18 @@ internal object KotlinDslInternalOptions {
         internalOptions.getBoolean(ACCESSOR_CACHING_DISABLED_PROPERTY) -> ACCESSOR_CACHING_DISABLED_REASON
         else -> null
     }
+
+    // Selects the fingerprinting strategy for Kotlin script compilation classpaths:
+    // "legacy" (default) re-fingerprints the whole classpath on every query,
+    // "content" memoizes fingerprints per distinct classpath content,
+    // "chunked" additionally fingerprints shared classpath chunks (e.g. per plugin classloader) only once
+    private val CLASSPATH_FINGERPRINTING_MODE_PROPERTY: InternalOption<String> =
+        InternalOptions.ofString("org.gradle.internal.kotlin-script-classpath-fingerprinting", "legacy")
+
+    fun classpathFingerprintingMode(internalOptions: InternalOptions): ScriptClasspathFingerprintingMode =
+        when (internalOptions.getValue(CLASSPATH_FINGERPRINTING_MODE_PROPERTY).trim().lowercase()) {
+            "content" -> ScriptClasspathFingerprintingMode.CONTENT
+            "chunked" -> ScriptClasspathFingerprintingMode.CHUNKED
+            else -> ScriptClasspathFingerprintingMode.LEGACY
+        }
 }

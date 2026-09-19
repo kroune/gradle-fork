@@ -117,7 +117,8 @@ class StandardKotlinScriptEvaluator(
     private val buildTreeRootDir: Path,
     private val transformFactoryForLegacy: ClasspathElementTransformFactoryForLegacy,
     private val gradleCoreTypeRegistry: GradleCoreInstrumentationTypeRegistry,
-    private val propertyUpgradeReportConfig: PropertyUpgradeReportConfig
+    private val propertyUpgradeReportConfig: PropertyUpgradeReportConfig,
+    private val structureRegistry: ScriptClasspathStructureRegistry?
 ) : KotlinScriptEvaluator {
 
     override fun evaluate(
@@ -285,6 +286,7 @@ class StandardKotlinScriptEvaluator(
             accessorsClassPath: ClassPath,
             initializer: (File) -> Unit
         ): File = try {
+            structureRegistry?.registerComposite(compilationClassPath, accessorsClassPath)
             val output = executionEngineFor(scriptHost)
                 .createRequest(
                     KotlinScriptCompilationAndInstrumentation(

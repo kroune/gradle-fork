@@ -29,6 +29,7 @@ import org.gradle.initialization.layout.BuildLayoutFactory
 import org.gradle.internal.buildoption.InternalOptions
 import org.gradle.internal.classloader.ClasspathHasher
 import org.gradle.internal.classpath.CachedClasspathTransformer
+import org.gradle.internal.classpath.ClasspathWalker
 import org.gradle.internal.classpath.transforms.ClasspathElementTransformFactoryForLegacy
 import org.gradle.internal.classpath.types.GradleCoreInstrumentationTypeRegistry
 import org.gradle.internal.event.ListenerManager
@@ -43,6 +44,9 @@ import org.gradle.internal.scripts.ScriptExecutionListener
 import org.gradle.internal.service.Provides
 import org.gradle.internal.service.ServiceRegistrationProvider
 import org.gradle.kotlin.dsl.cache.KotlinDslWorkspaceProvider
+import org.gradle.kotlin.dsl.execution.DefaultKotlinMetadataCompatibilityChecker
+import org.gradle.kotlin.dsl.execution.KotlinMetadataCompatibilityCache
+import org.gradle.kotlin.dsl.execution.KotlinMetadataCompatibilityChecker
 import org.gradle.kotlin.dsl.normalization.KotlinCompileClasspathFingerprinter
 import org.gradle.kotlin.dsl.normalization.KotlinDslCompileAvoidanceClasspathHashCache
 import org.gradle.kotlin.dsl.support.EmbeddedKotlinProvider
@@ -67,6 +71,8 @@ object BuildServices : ServiceRegistrationProvider {
         classPathRegistry: ClassPathRegistry,
         classLoaderScopeRegistry: ClassLoaderScopeRegistry,
         dependencyFactory: DependencyFactory,
+        structureRegistry: ScriptClasspathStructureRegistry,
+        internalOptions: InternalOptions,
     ) =
 
         KotlinScriptClassPathProvider(
@@ -75,7 +81,12 @@ object BuildServices : ServiceRegistrationProvider {
             dependencyFactory,
             classPathRegistry,
             classLoaderScopeRegistry.coreAndPluginsScope,
+            structureRegistry.takeIf { KotlinDslInternalOptions.classpathFingerprintingMode(internalOptions) == ScriptClasspathFingerprintingMode.CHUNKED },
         )
+
+    @Provides
+    fun createScriptClasspathStructureRegistry() =
+        ScriptClasspathStructureRegistry()
 
     @Provides
     fun createPluginRequestsHandler(
@@ -117,7 +128,8 @@ object BuildServices : ServiceRegistrationProvider {
         startParameterInternal: StartParameterInternal,
         transformFactoryForLegacy: ClasspathElementTransformFactoryForLegacy,
         gradleCoreTypeRegistry: GradleCoreInstrumentationTypeRegistry,
-        propertyUpgradeReportConfig: PropertyUpgradeReportConfig
+        propertyUpgradeReportConfig: PropertyUpgradeReportConfig,
+        structureRegistry: ScriptClasspathStructureRegistry,
     ): KotlinScriptEvaluator =
 
         StandardKotlinScriptEvaluator(
@@ -144,7 +156,8 @@ object BuildServices : ServiceRegistrationProvider {
             buildLayoutFactory.getBuildTreeRootDir(startParameterInternal),
             transformFactoryForLegacy,
             gradleCoreTypeRegistry,
-            propertyUpgradeReportConfig
+            propertyUpgradeReportConfig,
+            structureRegistry.takeIf { KotlinDslInternalOptions.classpathFingerprintingMode(internalOptions) == ScriptClasspathFingerprintingMode.CHUNKED },
         )
 
     // project.gradle.root.settings may not be available when we compile scripts,
@@ -159,9 +172,11 @@ object BuildServices : ServiceRegistrationProvider {
         kotlinDslCompileAvoidanceClasspathHashCache: KotlinDslCompileAvoidanceClasspathHashCache,
         fileCollectionSnapshotter: FileCollectionSnapshotter,
         fileCollectionFactory: FileCollectionFactory,
-        classpathFingerprinter: ClasspathFingerprinter
-    ): ClasspathHasher =
-        DefaultClasspathHasher(
+        classpathFingerprinter: ClasspathFingerprinter,
+        structureRegistry: ScriptClasspathStructureRegistry,
+        internalOptions: InternalOptions,
+    ): ClasspathHasher {
+        val delegate = DefaultClasspathHasher(
             fileCollectionSnapshotter,
             if (isKotlinScriptCompilationAvoidanceEnabled) {
                 KotlinCompileClasspathFingerprinter(kotlinDslCompileAvoidanceClasspathHashCache)
@@ -170,6 +185,29 @@ object BuildServices : ServiceRegistrationProvider {
             },
             fileCollectionFactory
         )
+        return when (KotlinDslInternalOptions.classpathFingerprintingMode(internalOptions)) {
+            ScriptClasspathFingerprintingMode.LEGACY -> delegate
+            ScriptClasspathFingerprintingMode.CONTENT -> FingerprintingClasspathHasher(delegate)
+            ScriptClasspathFingerprintingMode.CHUNKED -> FingerprintingClasspathHasher(delegate, structureRegistry)
+        }
+    }
+
+    @Provides
+    fun createKotlinMetadataCompatibilityChecker(
+        fileCollectionSnapshotter: FileCollectionSnapshotter,
+        fileCollectionFactory: FileCollectionFactory,
+        compatibilityCache: KotlinMetadataCompatibilityCache,
+        classpathWalker: ClasspathWalker,
+        structureRegistry: ScriptClasspathStructureRegistry,
+        internalOptions: InternalOptions,
+    ): KotlinMetadataCompatibilityChecker {
+        val delegate = DefaultKotlinMetadataCompatibilityChecker(fileCollectionSnapshotter, fileCollectionFactory, compatibilityCache, classpathWalker)
+        return when (KotlinDslInternalOptions.classpathFingerprintingMode(internalOptions)) {
+            ScriptClasspathFingerprintingMode.LEGACY -> delegate
+            ScriptClasspathFingerprintingMode.CONTENT -> MemoizingKotlinMetadataCompatibilityChecker(delegate, null)
+            ScriptClasspathFingerprintingMode.CHUNKED -> MemoizingKotlinMetadataCompatibilityChecker(delegate, structureRegistry)
+        }
+    }
 
     @Provides
     fun createKotlinCompilerContextDisposer(listenerManager: ListenerManager) =

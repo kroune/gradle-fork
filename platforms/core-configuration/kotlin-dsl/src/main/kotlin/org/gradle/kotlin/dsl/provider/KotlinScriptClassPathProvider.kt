@@ -74,6 +74,7 @@ class KotlinScriptClassPathProvider(
     dependencyFactory: DependencyFactory,
     classPathRegistry: ClassPathRegistry,
     coreAndPluginsScope: ClassLoaderScope,
+    private val structureRegistry: ScriptClasspathStructureRegistry?,
 ) : GradleApiClasspathProvider {
 
     private
@@ -146,16 +147,37 @@ class KotlinScriptClassPathProvider(
         cachedScopeCompilationClassPath.computeIfAbsent(scope, ::computeCompilationClassPath)
 
     private
-    fun computeCompilationClassPath(scope: ClassLoaderScope): ClassPath =
-        gradleKotlinDslAbiClasspath + exportClassPathFromHierarchyOf(scope)
+    fun computeCompilationClassPath(scope: ClassLoaderScope): ClassPath {
+        val chunks = exportedClassPathChunksFromHierarchyOf(scope)
+        val exportedFiles = LinkedHashSet<File>()
+        chunks.forEach { chunk -> chunk.filterTo(exportedFiles) { it !in gradleImplementationClassPath } }
+        val result = gradleKotlinDslAbiClasspath + DefaultClassPath.of(exportedFiles)
+        structureRegistry?.register(
+            result,
+            listOf(gradleKotlinDslAbiClasspath.asFiles) + chunks.map { chunk -> chunk.filter { it !in gradleImplementationClassPath } }
+        )
+        return result
+    }
 
     internal
-    fun exportClassPathFromHierarchyOf(scope: ClassLoaderScope): ClassPath {
+    fun exportClassPathFromHierarchyOf(scope: ClassLoaderScope): ClassPath =
+        DefaultClassPath.of(exportedFilesFromHierarchyOf(scope))
+
+    private
+    fun exportedFilesFromHierarchyOf(scope: ClassLoaderScope): Set<File> {
         require(scope.isLocked) {
             "$scope must be locked before it can be used to compute a classpath!"
         }
         val exportedClassPath = cachedClassLoaderClassPath.of(scope.exportClassLoader)
-        return DefaultClassPath.of(exportedClassPath - gradleImplementationClassPath)
+        return exportedClassPath - gradleImplementationClassPath
+    }
+
+    private
+    fun exportedClassPathChunksFromHierarchyOf(scope: ClassLoaderScope): List<List<File>> {
+        require(scope.isLocked) {
+            "$scope must be locked before it can be used to compute a classpath!"
+        }
+        return cachedClassLoaderClassPath.chunksOf(scope.exportClassLoader)
     }
 
     private
@@ -186,32 +208,44 @@ private
 class ClassLoaderClassPathCache {
 
     private
-    val cachedClassPaths = hashMapOf<ClassLoader, Set<File>>()
+    val cachedClassPathChunks = hashMapOf<ClassLoader, List<List<File>>>()
 
-    fun of(classLoader: ClassLoader): Set<File> =
-        cachedClassPaths.getOrPut(classLoader) {
-            classPathOf(classLoader)
+    fun of(classLoader: ClassLoader): Set<File> {
+        val classPathFiles = LinkedHashSet<File>()
+        chunksOf(classLoader).forEach { classPathFiles.addAll(it) }
+        return classPathFiles
+    }
+
+    /**
+     * The classpath of [classLoader] and its parents, decomposed into per-classloader
+     * chunks (child first, files deduplicated across chunks in visit order).
+     */
+    fun chunksOf(classLoader: ClassLoader): List<List<File>> =
+        cachedClassPathChunks.getOrPut(classLoader) {
+            computeChunks(classLoader)
         }
 
     private
-    fun classPathOf(classLoader: ClassLoader): Set<File> {
-        val classPathFiles = mutableSetOf<File>()
+    fun computeChunks(classLoader: ClassLoader): List<List<File>> {
+        val chunks = mutableListOf<List<File>>()
+        val seen = HashSet<File>()
 
         object : ClassLoaderVisitor() {
             override fun visitClassPath(classPath: Array<URL>) {
-                classPath.forEach { url ->
-                    if (url.protocol == "file") {
-                        classPathFiles.add(fileFrom(url))
-                    }
+                val chunk = classPath.mapNotNull { url ->
+                    if (url.protocol == "file") fileFrom(url).takeIf { seen.add(it) } else null
+                }
+                if (chunk.isNotEmpty()) {
+                    chunks.add(chunk)
                 }
             }
 
             override fun visitParent(classLoader: ClassLoader) {
-                classPathFiles.addAll(of(classLoader))
+                visit(classLoader)
             }
         }.visit(classLoader)
 
-        return classPathFiles
+        return chunks
     }
 
     private

@@ -22,6 +22,7 @@ import org.gradle.internal.execution.caching.CachingDisabledReason
 import org.gradle.internal.execution.caching.CachingDisabledReasonCategory.NOT_CACHEABLE
 import org.gradle.kotlin.dsl.provider.KotlinDslInternalOptions.accessorCachingDisabledReason
 import org.gradle.kotlin.dsl.provider.KotlinDslInternalOptions.cachingDisabledReason
+import org.gradle.kotlin.dsl.provider.KotlinDslInternalOptions.classpathFingerprintingMode
 
 import org.hamcrest.CoreMatchers.equalTo
 import org.hamcrest.CoreMatchers.nullValue
@@ -86,9 +87,41 @@ class KotlinDslInternalOptionsTest {
         )
     }
 
+    @Test
+    fun `classpath fingerprinting mode is legacy by default`() {
+        assertThat(
+            classpathFingerprintingMode(DefaultInternalOptions(mapOf<String, String>())),
+            equalTo(ScriptClasspathFingerprintingMode.LEGACY)
+        )
+    }
+
+    @Test
+    fun `classpath fingerprinting mode can be selected`() {
+        assertThat(
+            classpathFingerprintingMode(optionsWithValues("org.gradle.internal.kotlin-script-classpath-fingerprinting" to "content")),
+            equalTo(ScriptClasspathFingerprintingMode.CONTENT)
+        )
+        assertThat(
+            classpathFingerprintingMode(optionsWithValues("org.gradle.internal.kotlin-script-classpath-fingerprinting" to "chunked")),
+            equalTo(ScriptClasspathFingerprintingMode.CHUNKED)
+        )
+    }
+
+    @Test
+    fun `unknown classpath fingerprinting mode falls back to legacy`() {
+        assertThat(
+            classpathFingerprintingMode(optionsWithValues("org.gradle.internal.kotlin-script-classpath-fingerprinting" to "unknown")),
+            equalTo(ScriptClasspathFingerprintingMode.LEGACY)
+        )
+    }
+
     private
     fun optionsWith(vararg settings: Pair<String, Boolean>): InternalOptions =
         DefaultInternalOptions(settings.associate { (name, disabled) -> name to disabled.toString() })
+
+    private
+    fun optionsWithValues(vararg settings: Pair<String, String>): InternalOptions =
+        DefaultInternalOptions(settings.toMap())
 
     private
     fun assertReason(reason: CachingDisabledReason?, expectedMessage: String) {
