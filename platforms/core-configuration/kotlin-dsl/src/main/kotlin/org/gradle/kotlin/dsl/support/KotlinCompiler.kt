@@ -157,12 +157,8 @@ fun compileKotlinScriptModuleTo(
 ) {
     withRootDisposable {
         withCompilationExceptionHandler(messageCollector) {
-            val configuration = compilerConfigurationFor(messageCollector, compilerOptions).apply {
+            val configuration = scriptCompilerConfigurationFor(messageCollector, compilerOptions, moduleName).apply {
                 put(OUTPUT_DIRECTORY, outputDirectory)
-                setModuleName(moduleName)
-                addScriptingCompilerComponents()
-                add(SamWithReceiverConfigurationKeys.SAM_WITH_RECEIVER_ANNOTATION, HasImplicitReceiver::class.qualifiedName!!)
-                add(AssignmentConfigurationKeys.ASSIGNMENT_ANNOTATION, SupportsKotlinAssignmentOverloading::class.qualifiedName!!)
             }
 
             val environment = kotlinCoreEnvironmentFor(configuration)
@@ -221,6 +217,32 @@ inline fun <T> withRootDisposable(action: Disposable.() -> T): T {
     } finally {
         dispose(rootDisposable)
     }
+}
+
+
+/**
+ * Pins a [KotlinCoreEnvironment] for the lifetime of the returned disposable.
+ *
+ * Every script compilation creates and disposes its own compiler environment. Whenever the last
+ * of them is disposed, the shared compiler application environment assumes the compiler is idle
+ * and drops its jar file caches, so the next compilation re-reads every jar on the compilation
+ * classpath. Keeping a pinned environment alive between compilations prevents that cleanup.
+ *
+ * The returned disposable must be disposed once no more scripts are expected to be compiled,
+ * see [unpinKotlinCompilerEnvironment] and [disposeKotlinCompilerContext].
+ */
+internal
+fun pinKotlinCompilerEnvironment(): Disposable =
+    newDisposable().also { pin ->
+        pin.kotlinCoreEnvironmentFor(
+            scriptCompilerConfigurationFor(MessageCollector.NONE, KotlinCompilerOptions(), "buildscript")
+        )
+    }
+
+
+internal
+fun unpinKotlinCompilerEnvironment(pin: Disposable) {
+    dispose(pin)
 }
 
 
@@ -338,6 +360,20 @@ class LoggingOutputStream(val log: (String) -> Unit) : OutputStream() {
         flush()
     }
 }
+
+
+private
+fun scriptCompilerConfigurationFor(
+    messageCollector: MessageCollector,
+    compilerOptions: KotlinCompilerOptions,
+    moduleName: String
+): CompilerConfiguration =
+    compilerConfigurationFor(messageCollector, compilerOptions).apply {
+        setModuleName(moduleName)
+        addScriptingCompilerComponents()
+        add(SamWithReceiverConfigurationKeys.SAM_WITH_RECEIVER_ANNOTATION, HasImplicitReceiver::class.qualifiedName!!)
+        add(AssignmentConfigurationKeys.ASSIGNMENT_ANNOTATION, SupportsKotlinAssignmentOverloading::class.qualifiedName!!)
+    }
 
 
 @OptIn(CompilerConfiguration.Internals::class)

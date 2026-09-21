@@ -23,6 +23,9 @@ import org.gradle.internal.event.ListenerManager
 import org.gradle.internal.service.scopes.Scope
 import org.gradle.internal.service.scopes.ServiceScope
 import org.gradle.kotlin.dsl.support.disposeKotlinCompilerContext
+import org.gradle.kotlin.dsl.support.pinKotlinCompilerEnvironment
+import org.gradle.kotlin.dsl.support.unpinKotlinCompilerEnvironment
+import org.jetbrains.kotlin.com.intellij.openapi.Disposable
 
 
 /**
@@ -34,15 +37,30 @@ class KotlinCompilerContextDisposer(
     private val listenerManager: ListenerManager
 ) : InternalBuildAdapter(), Stoppable {
 
+    /**
+     * Keeps the shared compiler application environment warm between script compilations.
+     *
+     * Without the pin, the compiler drops its jar file caches whenever no script compilation
+     * is running, and the next compilation re-reads the whole compilation classpath.
+     */
+    private var compilerEnvironmentPin: Disposable? = pinKotlinCompilerEnvironment()
+
     init {
         listenerManager.addListener(this)
     }
 
     override fun stop() {
+        unpin()
         listenerManager.removeListener(this)
     }
 
     override fun projectsEvaluated(gradle: Gradle) {
+        unpin()
         disposeKotlinCompilerContext()
+    }
+
+    private fun unpin() {
+        compilerEnvironmentPin?.let { unpinKotlinCompilerEnvironment(it) }
+        compilerEnvironmentPin = null
     }
 }
