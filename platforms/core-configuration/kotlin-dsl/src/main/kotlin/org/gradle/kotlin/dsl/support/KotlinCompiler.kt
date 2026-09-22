@@ -64,7 +64,7 @@ import org.jetbrains.kotlin.samWithReceiver.SamWithReceiverComponentRegistrar
 import org.jetbrains.kotlin.samWithReceiver.SamWithReceiverConfigurationKeys
 import org.jetbrains.kotlin.scripting.compiler.plugin.ScriptingCompilerConfigurationComponentRegistrar
 import org.jetbrains.kotlin.scripting.compiler.plugin.ScriptingK2CompilerPluginRegistrar
-import org.jetbrains.kotlin.scripting.compiler.plugin.impl.ScriptJvmCompilerFromEnvironment
+import org.jetbrains.kotlin.scripting.compiler.plugin.impl.ScriptJvmK2CompilerFromEnvironment
 import org.jetbrains.kotlin.scripting.compiler.plugin.toCompilerMessageSeverity
 import org.jetbrains.kotlin.scripting.definitions.ScriptDefinition
 import org.jetbrains.kotlin.utils.PathUtil
@@ -164,7 +164,7 @@ fun compileKotlinScriptModuleTo(
             val environment = kotlinCoreEnvironmentFor(configuration)
 
             val host = BasicJvmScriptingHost(
-                compiler = JvmScriptCompiler(scriptDef.hostConfiguration, ScriptJvmCompilerFromEnvironment(environment)),
+                compiler = JvmScriptCompiler(scriptDef.hostConfiguration, ScriptJvmK2CompilerFromEnvironment(environment, scriptDef.hostConfiguration)),
                 evaluator = BasicJvmScriptClassFilesGenerator(outputDirectory)
             )
             val compilationConfiguration = scriptDef.compilationConfiguration.with {

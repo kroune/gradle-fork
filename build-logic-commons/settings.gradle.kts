@@ -20,7 +20,14 @@ pluginManagement {
 
 dependencyResolutionManagement {
     repositories {
-        gradlePluginPortal()
+        maven {
+            // Custom Kotlin compiler build (KT-86313 prototype). Override with the CUSTOM_KOTLIN_REPO_URL env var for local testing.
+            url = uri(System.getenv("CUSTOM_KOTLIN_REPO_URL") ?: "https://raw.githubusercontent.com/kroune/maven-repo/main")
+            content {
+                includeVersionByRegex("org\\.jetbrains\\.kotlin", ".*", "2\\.4\\.10-fir-cache-.*")
+            }
+        }
+                gradlePluginPortal()
     }
 }
 

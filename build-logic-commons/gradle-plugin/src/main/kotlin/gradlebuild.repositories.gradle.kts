@@ -15,6 +15,14 @@
  */
 
 repositories {
+    // Custom Kotlin compiler build (KT-86313 prototype). Override with the CUSTOM_KOTLIN_REPO_URL env var for local testing.
+    maven {
+        name = "Custom Kotlin repository"
+        url = uri((providers.environmentVariable("CUSTOM_KOTLIN_REPO_URL").orElse(providers.gradleProperty("customKotlinRepoUrl")).orNull) ?: "https://raw.githubusercontent.com/kroune/maven-repo/main")
+        content {
+            includeVersionByRegex("org\\.jetbrains\\.kotlin", ".*", "2\\.4\\.10-fir-cache-.*")
+        }
+    }
     maven {
         name = "Gradle public repository"
         url = uri("https://repo.gradle.org/gradle/public")
