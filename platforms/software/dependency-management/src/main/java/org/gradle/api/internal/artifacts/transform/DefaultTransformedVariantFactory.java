@@ -116,7 +116,7 @@ public class DefaultTransformedVariantFactory implements TransformedVariantFacto
         ImmutableList.Builder<SharedTransformedVariantCache.TransformStepToken> chainTokenBuilder = ImmutableList.builder();
         for (TransformStep step : steps) {
             step.isolateParametersIfNotAlready();
-            chainTokenBuilder.add(new SharedTransformedVariantCache.TransformStepToken(step.getTransform()));
+            chainTokenBuilder.add(new SharedTransformedVariantCache.TransformStepToken(step));
         }
         ImmutableList<SharedTransformedVariantCache.TransformStepToken> chainToken = chainTokenBuilder.build();
 

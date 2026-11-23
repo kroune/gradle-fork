@@ -43,6 +43,7 @@ class DefaultTransformedVariantFactoryTest extends Specification {
 
     def sharedCache = new SharedTransformedVariantCache()
     def startParameter = new StartParameterInternal()
+    def owner = Mock(DomainObjectContext)
 
     def newFactory() {
         new DefaultTransformedVariantFactory(
@@ -194,6 +195,19 @@ class DefaultTransformedVariantFactoryTest extends Specification {
         !resultA.is(otherResolver)
     }
 
+    def "external variants transformed in different contexts are not shared"() {
+        given:
+        def factoryA = newFactory()
+        def factoryB = newFactory()
+
+        when:
+        def resultA = factoryA.transformedExternalArtifacts(component("g", "a"), variant(id("v1")), definition(targetAttributes(), chain(step(1))), Mock(TransformUpstreamDependenciesResolver))
+        def resultB = factoryB.transformedExternalArtifacts(component("g", "a"), variant(id("v1")), definition(targetAttributes(), chain(step(1, ImmutableAttributes.EMPTY, ImmutableAttributes.EMPTY, false, Mock(DomainObjectContext)))), Mock(TransformUpstreamDependenciesResolver))
+
+        then:
+        !resultA.is(resultB)
+    }
+
     def "ad hoc variants are not cached"() {
         given:
         def factory = newFactory()
@@ -255,14 +269,14 @@ class DefaultTransformedVariantFactoryTest extends Specification {
         step(hashByte, ImmutableAttributes.EMPTY, ImmutableAttributes.EMPTY, needsDependencies)
     }
 
-    private TransformStep step(int hashByte, ImmutableAttributes from, ImmutableAttributes to = ImmutableAttributes.EMPTY, boolean needsDependencies = false) {
+    private TransformStep step(int hashByte, ImmutableAttributes from, ImmutableAttributes to = ImmutableAttributes.EMPTY, boolean needsDependencies = false, DomainObjectContext owner = this.owner) {
         def transform = Stub(Transform) {
             getSecondaryInputHash() >> HashCode.fromBytes([0, 0, 0, hashByte] as byte[])
             getFromAttributes() >> from
             getToAttributes() >> to
             requiresDependencies() >> needsDependencies
         }
-        new TransformStep(transform, Mock(TransformInvocationFactory), Mock(DomainObjectContext), Mock(InputFingerprinter))
+        new TransformStep(transform, Mock(TransformInvocationFactory), owner, Mock(InputFingerprinter))
     }
 
     private static TransformChain chain(TransformStep step) {

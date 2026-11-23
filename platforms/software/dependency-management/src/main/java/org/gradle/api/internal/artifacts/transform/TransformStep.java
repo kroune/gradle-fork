@@ -60,6 +60,10 @@ public class TransformStep implements TaskDependencyContainer, Describable {
         return transform;
     }
 
+    DomainObjectContext getOwner() {
+        return owner;
+    }
+
     public void deprecateIfQueriedFromTransformAction() {
         UndeclaredTransformQueryDeprecation.deprecateIfFromTransformAction(transform.getImplementationClass(), owner);
     }

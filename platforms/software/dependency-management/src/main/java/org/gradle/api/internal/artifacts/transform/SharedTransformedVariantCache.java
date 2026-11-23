@@ -23,6 +23,7 @@ import org.gradle.api.internal.artifacts.ivyservice.resolveengine.artifact.Resol
 import org.gradle.api.internal.attributes.ImmutableAttributes;
 import org.gradle.internal.component.model.VariantResolveMetadata;
 import org.gradle.internal.hash.HashCode;
+import org.gradle.internal.model.DomainObjectContext;
 import org.gradle.internal.service.scopes.Scope;
 import org.gradle.internal.service.scopes.ServiceScope;
 import org.jspecify.annotations.Nullable;
@@ -35,10 +36,10 @@ import java.util.concurrent.ConcurrentMap;
  * <p>Dependency resolution scopes (project configurations and detached resolvers) each create their own
  * {@link TransformedVariantFactory} and would otherwise rebuild identical transformed artifact sets per scope.
  *
- * We cache them here across scopes. Keys are content-based: they incorporate the component,
+ * We cache them here across scopes. Keys incorporate the component,
  * the source variant, the target attributes, and a token of the transform chain built from each step's
  * secondary input hash (which folds in the implementation class, its classloader hierarchy, and the isolated
- * parameter values) and its from/to attributes.
+ * parameter values), its from/to attributes, and the identity of its owning context.
  *
  * Transform steps must be isolated before a key is computed. The capabilities and source variant id captured by the value are from the keyed component and variant metadata,
  * so they need no key ingredient of their own.
@@ -202,19 +203,23 @@ public class SharedTransformedVariantCache {
     }
 
     /**
-     * The content identity of a single transform step: the secondary input hash of the isolated transform
-     * (implementation class, classloader hierarchy, and parameter value fingerprints) plus the from/to
-     * attributes of the step.
+     * The identity of a single transform step: the secondary input hash of the isolated transform
+     * (implementation class, classloader hierarchy, and parameter value fingerprints), its from/to
+     * attributes, and its owning context. The context is compared by identity because execution and
+     * deprecation reporting retain project-specific state.
      */
     public static class TransformStepToken {
         private final HashCode secondaryInputHash;
         private final ImmutableAttributes fromAttributes;
         private final ImmutableAttributes toAttributes;
+        private final DomainObjectContext owner;
 
-        public TransformStepToken(Transform transform) {
+        public TransformStepToken(TransformStep step) {
+            Transform transform = step.getTransform();
             this.secondaryInputHash = transform.getSecondaryInputHash();
             this.fromAttributes = transform.getFromAttributes();
             this.toAttributes = transform.getToAttributes();
+            this.owner = step.getOwner();
         }
 
         @Override
@@ -222,6 +227,7 @@ public class SharedTransformedVariantCache {
             int result = secondaryInputHash.hashCode();
             result = 31 * result + fromAttributes.hashCode();
             result = 31 * result + toAttributes.hashCode();
+            result = 31 * result + System.identityHashCode(owner);
             return result;
         }
 
@@ -236,7 +242,8 @@ public class SharedTransformedVariantCache {
             TransformStepToken other = (TransformStepToken) obj;
             return secondaryInputHash.equals(other.secondaryInputHash)
                 && fromAttributes.equals(other.fromAttributes)
-                && toAttributes.equals(other.toAttributes);
+                && toAttributes.equals(other.toAttributes)
+                && owner == other.owner;
         }
     }
 }
