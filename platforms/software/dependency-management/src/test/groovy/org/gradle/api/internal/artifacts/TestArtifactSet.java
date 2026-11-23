@@ -17,6 +17,7 @@
 package org.gradle.api.internal.artifacts;
 
 import com.google.common.collect.ImmutableSet;
+import org.gradle.api.Action;
 import org.gradle.api.artifacts.ResolvedArtifact;
 import org.gradle.api.artifacts.component.ComponentArtifactIdentifier;
 import org.gradle.api.artifacts.component.ComponentIdentifier;
@@ -76,6 +77,10 @@ public class TestArtifactSet implements ResolvedArtifactSet, ResolvedArtifactSet
 
     @Override
     public void visitTransformSources(TransformSourceVisitor visitor) {
+    }
+
+    @Override
+    public void visitExternalArtifacts(Action<ResolvableArtifact> visitor) {
     }
 
     @Override

@@ -17,6 +17,7 @@
 package org.gradle.api.internal.artifacts.ivyservice.resolveengine.artifact;
 
 import org.apache.commons.lang3.StringUtils;
+import org.gradle.api.Action;
 import org.gradle.api.artifacts.ResolvedArtifact;
 import org.gradle.api.artifacts.component.ComponentArtifactIdentifier;
 import org.gradle.api.internal.artifacts.configurations.ResolutionHost;
@@ -145,6 +146,11 @@ public class ArtifactSetToFileCollectionFactory {
             }
 
             @Override
+            public void visitExternalArtifacts(Action<ResolvableArtifact> visitor) {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
             public void visitDependencies(TaskDependencyResolveContext context) {
                 throw new UnsupportedOperationException();
             }
@@ -217,6 +223,11 @@ public class ArtifactSetToFileCollectionFactory {
 
         @Override
         public void visitTransformSources(TransformSourceVisitor visitor) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void visitExternalArtifacts(Action<ResolvableArtifact> visitor) {
             throw new UnsupportedOperationException();
         }
 

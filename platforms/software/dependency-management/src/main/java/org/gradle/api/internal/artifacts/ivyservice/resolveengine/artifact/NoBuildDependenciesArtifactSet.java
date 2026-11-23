@@ -16,6 +16,7 @@
 
 package org.gradle.api.internal.artifacts.ivyservice.resolveengine.artifact;
 
+import org.gradle.api.Action;
 import org.gradle.api.internal.tasks.TaskDependencyResolveContext;
 
 public class NoBuildDependenciesArtifactSet implements ArtifactSet {
@@ -49,6 +50,11 @@ public class NoBuildDependenciesArtifactSet implements ArtifactSet {
         @Override
         public void visitTransformSources(TransformSourceVisitor visitor) {
             selectedArtifacts.visitTransformSources(visitor);
+        }
+
+        @Override
+        public void visitExternalArtifacts(Action<ResolvableArtifact> visitor) {
+            selectedArtifacts.visitExternalArtifacts(visitor);
         }
 
         @Override

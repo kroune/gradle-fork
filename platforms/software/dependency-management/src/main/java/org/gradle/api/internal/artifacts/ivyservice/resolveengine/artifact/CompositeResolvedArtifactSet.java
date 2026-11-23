@@ -16,6 +16,7 @@
 
 package org.gradle.api.internal.artifacts.ivyservice.resolveengine.artifact;
 
+import org.gradle.api.Action;
 import org.gradle.api.internal.tasks.TaskDependencyResolveContext;
 
 import java.util.ArrayList;
@@ -62,6 +63,13 @@ public class CompositeResolvedArtifactSet implements ResolvedArtifactSet {
     public void visitTransformSources(TransformSourceVisitor visitor) {
         for (ResolvedArtifactSet set : sets) {
             set.visitTransformSources(visitor);
+        }
+    }
+
+    @Override
+    public void visitExternalArtifacts(Action<ResolvableArtifact> visitor) {
+        for (ResolvedArtifactSet set : sets) {
+            set.visitExternalArtifacts(visitor);
         }
     }
 

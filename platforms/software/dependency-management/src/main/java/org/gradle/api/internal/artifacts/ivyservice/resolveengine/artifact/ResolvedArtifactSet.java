@@ -16,6 +16,7 @@
 
 package org.gradle.api.internal.artifacts.ivyservice.resolveengine.artifact;
 
+import org.gradle.api.Action;
 import org.gradle.api.internal.artifacts.transform.TransformStepNode;
 import org.gradle.api.internal.file.FileCollectionInternal;
 import org.gradle.api.internal.file.FileCollectionStructureVisitor;
@@ -43,6 +44,11 @@ public interface ResolvedArtifactSet extends TaskDependencyContainer {
         void visitTransform(TransformStepNode source);
     }
 
+    /**
+     * Visits the external artifacts of this set.
+     */
+    void visitExternalArtifacts(Action<ResolvableArtifact> visitor);
+
     ResolvedArtifactSet EMPTY = new ResolvedArtifactSet() {
         @Override
         public void visit(Visitor visitor) {
@@ -50,6 +56,10 @@ public interface ResolvedArtifactSet extends TaskDependencyContainer {
 
         @Override
         public void visitTransformSources(TransformSourceVisitor visitor) {
+        }
+
+        @Override
+        public void visitExternalArtifacts(Action<ResolvableArtifact> visitor) {
         }
 
         @Override

@@ -17,6 +17,7 @@
 package org.gradle.api.internal.artifacts.ivyservice.resolveengine.artifact;
 
 import com.google.common.collect.ImmutableList;
+import org.gradle.api.Action;
 import org.gradle.api.artifacts.component.ComponentArtifactIdentifier;
 import org.gradle.api.artifacts.component.ComponentIdentifier;
 import org.gradle.api.internal.artifacts.DefaultResolvableArtifact;
@@ -177,6 +178,12 @@ public abstract class LocalFileDependencyBackedArtifactSet implements Transforme
     }
 
     @Override
+    public void visitExternalArtifacts(Action<ResolvableArtifact> visitor) {
+        // Should not be called
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public void visitDependencies(TaskDependencyResolveContext context) {
         context.add(dependencyMetadata.getFiles().getBuildDependencies());
     }
@@ -254,6 +261,12 @@ public abstract class LocalFileDependencyBackedArtifactSet implements Transforme
 
         @Override
         public void visitTransformSources(TransformSourceVisitor visitor) {
+            // Should not be called
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void visitExternalArtifacts(Action<ResolvableArtifact> visitor) {
             // Should not be called
             throw new UnsupportedOperationException();
         }
