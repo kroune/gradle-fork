@@ -19,7 +19,6 @@ package org.gradle.api.internal.artifacts.transform
 import org.gradle.api.Action
 import org.gradle.api.artifacts.component.ComponentIdentifier
 import org.gradle.api.attributes.Attribute
-import org.gradle.api.internal.DomainObjectContext
 import org.gradle.api.internal.StartParameterInternal
 import org.gradle.api.internal.artifacts.DefaultModuleIdentifier
 import org.gradle.api.internal.artifacts.ivyservice.resolveengine.artifact.ResolvableArtifact
@@ -34,6 +33,7 @@ import org.gradle.internal.component.model.VariantIdentifier
 import org.gradle.internal.component.model.VariantResolveMetadata
 import org.gradle.internal.execution.InputFingerprinter
 import org.gradle.internal.hash.HashCode
+import org.gradle.internal.model.DomainObjectContext
 import org.gradle.internal.operations.TestBuildOperationRunner
 import org.gradle.util.AttributeTestUtil
 import org.gradle.util.TestUtil
